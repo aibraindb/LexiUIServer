@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant UI
+  participant API as Status API
+  participant DB as DB (case_event, case_state)
+
+  UI->>API: POST /cases/123/events {action:"case_started"}
+  API->>DB: insert case_event (idempotent)
+  API->>DB: upsert case_state (status=IN_PROGRESS, last_resume_ts=now)
+  API-->>UI: 200 {status, active_ms}
+
+  UI->>API: POST /cases/123/events {action:"case_saved"}
+  API->>DB: append event; state unchanged (IN_PROGRESS)
+  API-->>UI: 200
+
+  UI->>API: POST /cases/123/events {action:"case_submitted"}
+  API->>DB: add (now - last_resume_ts) to active_ms; status=SUBMITTED
+  API-->>UI: 200 {status:SUBMITTED, active_ms}
